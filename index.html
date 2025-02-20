@@ -6,7 +6,7 @@
     <title>FIFA 23 Ratings Analysis</title>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
-    
+
     <!-- Hamna: Add your CSS styles here -->
     <style>
         body {
@@ -26,11 +26,10 @@
 </head>
 <body>
     <h1>FIFA 23 Ratings vs World Cup 2022 Match Outcomes</h1>
-    
+
     <div id="chart"></div> <!-- Lovenit: This is where the D3.js visualization will go -->
 
     <script>
-
         Promise.all([
             fetch("Fifa 23 Players Data.csv").then(response => response.text()),
             fetch("Fifa_world_cup_matches.csv").then(response => response.text())
@@ -39,34 +38,45 @@
             const fifa23 = Papa.parse(fifa23Data, { header: true, skipEmptyLines: true }).data;
             const worldCup = Papa.parse(worldCupData, { header: true, skipEmptyLines: true }).data;
 
+            console.log("Parsed FIFA 23 Data:", fifa23); // Check parsed FIFA data
+            console.log("Parsed World Cup Data:", worldCup); // Check parsed World Cup data
+
             const playerRatings = {};
             fifa23.forEach(player => {
-                playerRatings[player.Name] = {
+                playerRatings[player["Known As"]] = {
                     overall: parseFloat(player.Overall),
-                    potential: parseFloat(player.Potential)
+                    potential: parseFloat(player.Potential),
+                    team: player.Nationality.trim().toLowerCase() // Normalize the team name
                 };
             });
 
+            console.log("Player Ratings Mapping:", playerRatings); // Check player ratings mapping
+
             const matchResults = [];
             worldCup.forEach(match => {
-                const teams = [match["Home Team"], match["Away Team"]];
-                const outcomes = [match["Home Team Goals"], match["Away Team Goals"]];
+                const teams = [match["team1"], match["team2"]];
+                const outcomes = [match["team1_result"], match["team2_result"]]; // Using team1_result and team2_result directly
+
+                console.log("Processing match:", teams, outcomes); // Log the match data
 
                 teams.forEach((team, index) => {
+                    const normalizedTeam = team.trim().toLowerCase();
                     let totalOverall = 0, totalPotential = 0, playerCount = 0;
-                    for (let i = 1; i <= 11; i++) { 
-                        const playerName = match[`Player ${i} (${team})`];
-                        if (playerName && playerRatings[playerName]) {
+
+                    for (const playerName in playerRatings) {
+                        if (playerRatings[playerName].team === normalizedTeam) {
                             totalOverall += playerRatings[playerName].overall;
                             totalPotential += playerRatings[playerName].potential;
                             playerCount++;
                         }
                     }
 
+                    console.log(`Total players in ${team}: ${playerCount}`); // Log how many players match
+
                     if (playerCount > 0) {
                         matchResults.push({
                             team: team,
-                            matchOutcome: outcomes[index] > outcomes[1 - index] ? "Win" : (outcomes[index] < outcomes[1 - index] ? "Loss" : "Draw"),
+                            matchOutcome: outcomes[index], // Directly using the result from the CSV
                             avgOverall: totalOverall / playerCount,
                             avgPotential: totalPotential / playerCount
                         });
@@ -74,7 +84,7 @@
                 });
             });
 
-            console.log(matchResults);
+            console.log("Final Match Results:", matchResults); // Check final match results
 
             // Lovenit: Add your D3.js visualization here using `matchResults`
         });
