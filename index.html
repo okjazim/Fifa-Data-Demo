@@ -4,90 +4,273 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FIFA 23 Ratings Analysis</title>
+    <link rel="icon" type="image/png" href="https://i.pinimg.com/1200x/8c/b0/1c/8cb01c91b325638bdb5d943b63f33e22.jpg">
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
 
-    <!-- Hamna: Add your CSS styles here -->
     <style>
+        /* Hamna = CSS styling */
         body {
             font-family: Arial, sans-serif;
             text-align: center;
+            background-color: #2a2a2a;
         }
         h1 {
-            color: #333;
+            color: #ffffff;
         }
-        /* Hamna: Add styling for the D3.js chart */
         #chart {
             width: 80%;
-            margin: auto;
+            max-width: 900px;
             height: 500px;
+            margin: 20px auto;
+            padding: 10px;
+            border-radius: 15px;
+            background: linear-gradient(135deg, #2a2a72, #009ffd);
+            box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.3);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: transform 0.3s ease-in-out;
+            position: relative;
+        }
+        #chart:hover {
+            transform: scale(1.05);
+        }
+        .bar {
+            fill: #ff5733;
+            transition: fill 0.3s, height 0.3s ease-in-out;
+        }
+        .bar:hover {
+            fill: #ffcc00 !important;
+            height: 550px;
+        }
+        .axis path,
+        .axis line {
+            fill: none;
+            stroke: #ffffff;
+            shape-rendering: crispEdges;
+        }
+        .axis text {
+            font-size: 14px;
+            fill: #ffffff;
+        }
+        .tooltip {
+            position: absolute;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            padding: 8px;
+            border-radius: 5px;
+            font-size: 14px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.05s ease-out;
+        }
+        @media screen and (max-width: 768px) {
+            #chart {
+                width: 95%;
+                height: 400px;
+                border-radius: 10px;
+            }
+            .axis text {
+                font-size: 12px;
+            }
         }
     </style>
 </head>
 <body>
     <h1>FIFA 23 Ratings vs World Cup 2022 Match Outcomes</h1>
-
-    <div id="chart"></div> <!-- Lovenit: This is where the D3.js visualization will go -->
+    <div id="chart"></div>
 
     <script>
         Promise.all([
             fetch("Fifa 23 Players Data.csv").then(response => response.text()),
             fetch("Fifa_world_cup_matches.csv").then(response => response.text())
         ]).then(([fifa23Data, worldCupData]) => {
+            // Jasim = parsing and processing player ratings
 
             const fifa23 = Papa.parse(fifa23Data, { header: true, skipEmptyLines: true }).data;
             const worldCup = Papa.parse(worldCupData, { header: true, skipEmptyLines: true }).data;
 
-            console.log("Parsed FIFA 23 Data:", fifa23); // Check parsed FIFA data
-            console.log("Parsed World Cup Data:", worldCup); // Check parsed World Cup data
-
             const playerRatings = {};
             fifa23.forEach(player => {
-                playerRatings[player["Known As"]] = {
+                const team = player.Nationality.trim().toLowerCase();
+                if (!playerRatings[team]) {
+                    playerRatings[team] = [];
+                }
+                playerRatings[team].push({
                     overall: parseFloat(player.Overall),
-                    potential: parseFloat(player.Potential),
-                    team: player.Nationality.trim().toLowerCase() // Normalize the team name
-                };
+                    potential: parseFloat(player.Potential)
+                });
             });
 
-            console.log("Player Ratings Mapping:", playerRatings); // Check player ratings mapping
+            console.log("Player Ratings:", playerRatings);
+            // Jasim = processing match results and mapping them to player ratings
 
-            const matchResults = [];
+            const matchResults = {};
             worldCup.forEach(match => {
-                const teams = [match["team1"], match["team2"]];
-                const outcomes = [match["team1_result"], match["team2_result"]]; // Using team1_result and team2_result directly
-
-                console.log("Processing match:", teams, outcomes); // Log the match data
+                const teams = [match.team1, match.team2];
+                const outcomes = [match.team1_result, match.team2_result];
 
                 teams.forEach((team, index) => {
                     const normalizedTeam = team.trim().toLowerCase();
-                    let totalOverall = 0, totalPotential = 0, playerCount = 0;
+                    let topPlayers = playerRatings[normalizedTeam] || [];
 
-                    for (const playerName in playerRatings) {
-                        if (playerRatings[playerName].team === normalizedTeam) {
-                            totalOverall += playerRatings[playerName].overall;
-                            totalPotential += playerRatings[playerName].potential;
-                            playerCount++;
+                    // topp 11 players
+                    topPlayers.sort((a, b) => b.overall - a.overall);
+                    topPlayers = topPlayers.slice(0, 11);
+
+                    if (topPlayers.length > 0) {
+                        const totalOverall = topPlayers.reduce((sum, player) => sum + player.overall, 0);
+                        const totalPotential = topPlayers.reduce((sum, player) => sum + player.potential, 0);
+
+                        if (!matchResults[normalizedTeam]) {
+                            matchResults[normalizedTeam] = {
+                                avgOverall: 0,
+                                avgPotential: 0,
+                                wins: 0,
+                                losses: 0,
+                                draws: 0,
+                                count: 0
+                            };
                         }
-                    }
 
-                    console.log(`Total players in ${team}: ${playerCount}`); // Log how many players match
+                        matchResults[normalizedTeam].avgOverall += totalOverall / topPlayers.length;
+                        matchResults[normalizedTeam].avgPotential += totalPotential / topPlayers.length;
+                        matchResults[normalizedTeam].count += 1;
 
-                    if (playerCount > 0) {
-                        matchResults.push({
-                            team: team,
-                            matchOutcome: outcomes[index], // Directly using the result from the CSV
-                            avgOverall: totalOverall / playerCount,
-                            avgPotential: totalPotential / playerCount
-                        });
+                        if (outcomes[index] === 'win') {
+                            matchResults[normalizedTeam].wins++;
+                            const otherTeam = teams[1 - index].trim().toLowerCase();
+                            if (matchResults[otherTeam]) {
+                                matchResults[otherTeam].losses++;
+                            }
+                        } else if (outcomes[index] === 'lose') {
+                            matchResults[normalizedTeam].losses++;
+                            const otherTeam = teams[1 - index].trim().toLowerCase();
+                            if (matchResults[otherTeam]) {
+                                matchResults[otherTeam].wins++;
+                            }
+                        } else if (outcomes[index] === 'draw') {
+                            matchResults[normalizedTeam].draws++;
+                        }
                     }
                 });
             });
 
-            console.log("Final Match Results:", matchResults); // Check final match results
+            console.log("Match Results Before Averaging:", matchResults);
 
-            // Lovenit: Add your D3.js visualization here using `matchResults`
+            // averages
+            for (const team in matchResults) {
+                matchResults[team].avgOverall /= matchResults[team].count;
+                matchResults[team].avgPotential /= matchResults[team].count;
+            }
+
+            console.log("Match Results After Averaging:", matchResults);
+
+            /// Lovenit = visualization using D3.js
+            const margin = { top: 20, right: 20, bottom: 40, left: 40 };
+            const width = 860 - margin.left - margin.right;
+            const height = 460 - margin.top - margin.bottom;
+
+            const svg = d3.select("#chart")
+                .append("svg")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+                .append("g")
+                .attr("transform", `translate(${margin.left},${margin.top})`);
+
+            const xScale = d3.scaleLinear()
+                .domain([70, 90]) // range
+                .range([0, width]);
+
+            const yScale = d3.scaleLinear()
+                .domain([70, 90]) //range
+                .range([height, 0]);
+
+            const colorScale = d3.scaleOrdinal(d3.schemeCategory10);
+
+            // Scatter plot
+            function drawScatterPlot(data) {
+                svg.selectAll("circle")
+                    .data(data)
+                    .enter()
+                    .append("circle")
+                    .attr("cx", d => xScale(d.avgOverall))
+                    .attr("cy", d => yScale(d.avgPotential))
+                    .attr("r", 5)
+                    .attr("fill", d => colorScale(d.team))
+                    .attr("opacity", 0.7)
+                    .attr("stroke", "#fff")
+                    .attr("stroke-width", 1.5)
+                    .on("mouseover", function(event, d) {
+                        d3.select(this)
+                            .attr("r", 7)
+                            .style("transition", "r 0.1s");
+                        tooltip.transition()
+                            .duration(100)
+                            .style("opacity", 0.9);
+                        tooltip.html(`
+                            <strong>${d.team.toUpperCase()}</strong><br>
+                            Avg Overall: ${d.avgOverall.toFixed(1)}<br>
+                            Avg Potential: ${d.avgPotential.toFixed(1)}<br>
+                            Wins: ${d.wins}<br>
+                            Losses: ${d.losses}<br>
+                            Draws: ${d.draws}
+                        `)
+                        .style("left", (event.pageX + 15) + "px")
+                        .style("top", (event.pageY - 30) + "px");
+                    })
+                    .on("mouseout", function() {
+                        d3.select(this)
+                            .attr("r", 5)
+                            .style("transition", "r 0.1s");
+                        tooltip.transition()
+                            .duration(50)
+                            .style("opacity", 0);
+                    });
+            }
+
+            // Scatter PloT data
+            const scatterData = Object.keys(matchResults).map(team => ({
+                team: team,
+                avgOverall: matchResults[team].avgOverall,
+                avgPotential: matchResults[team].avgPotential,
+                wins: matchResults[team].wins,
+                losses: matchResults[team].losses,
+                draws: matchResults[team].draws
+            }));
+
+            console.log("Scatter Data:", scatterData);
+
+            drawScatterPlot(scatterData);
+
+            // Axes
+            svg.append("g")
+                .attr("transform", `translate(0,${height})`)
+                .call(d3.axisBottom(xScale).tickFormat(d3.format(".0f")).ticks(5))
+                .append("text")
+                .attr("class", "axis-label")
+                .attr("x", width / 2)
+                .attr("y", 30)
+                .style("fill", "#ffffff")
+                .text("Average Team Potential");
+
+            svg.append("g")
+                .call(d3.axisLeft(yScale).tickFormat(d3.format(".0f")).ticks(5))
+                .append("text")
+                .attr("class", "axis-label")
+                .attr("transform", "rotate(-90)")
+                .attr("y", -30)
+                .attr("x", -height / 2)
+                .style("fill", "#ffffff")
+                .text("Average Team Overall");
+
+            const tooltip = d3.select("body")
+                .append("div")
+                .attr("class", "tooltip")
+                .style("opacity", 0);
         });
     </script>
 </body>
 </html>
+
