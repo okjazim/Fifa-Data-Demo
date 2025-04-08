@@ -27,7 +27,7 @@ Each data point represents a national team, plotted based on their average overa
 
 | Member   | Role                            |
 |----------|---------------------------------|
-| **[@username1](https://github.com/hamna-shs)**   | UI/UX Styling (CSS)             |
+| **[@hamna-shs](https://github.com/hamna-shs)**   | UI/UX Styling (CSS)             |
 | **[@okjazim](https://github.com/okjazim)**   | Data Handling & Logic (JS + Parsing) |
 | **[@Lovenit36](https://github.com/Lovenit36)** | D3.js Visualizations           |
 
@@ -58,12 +58,12 @@ Each data point represents a national team, plotted based on their average overa
    
    Open `index.html` in any browser.
 
-> **Note**: This project requires local CSV file support. Some browsers might block file access due to security settings.  
-> Use a local server like **Live Server** in VSCode or run this command in your terminal:
+ > **Note**: This project requires local CSV file support. Some browsers might block file access due to security settings.  
+ > Use a local server like **Live Server** in VSCode or run this command in your terminal:
 
-```bash
-python -m http.server
-```
+ ```bash
+ python -m http.server
+ ```
 
 ## Future Enhancements
 - Add legends and filters (e.g., by continent or group stage)
